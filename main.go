@@ -87,7 +87,6 @@ func pipeLine(listenAddr, remoteAddr string) {
 			conn.Close()
 			continue
 		}
-		fmt.Println("using client", i)
 
 		osock, err := net.DialTCP("tcp", nil, raddr)
 		if err != nil {
@@ -130,6 +129,7 @@ func handleClient(cli *client) {
 			cli.inuse = false
 			return
 		}
+		fmt.Println("sending", n, "byes.", buf)
 
 		cli.activity = time.Now()
 	}
