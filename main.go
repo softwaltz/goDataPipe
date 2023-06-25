@@ -71,15 +71,14 @@ func pipeLine(listenAddr, remoteAddr string) {
 	}
 	defer lsock.Close()
 
+	clients := make([]client, MAXCLIENTS)
+
 	for {
 		conn, err := lsock.Accept()
 		if err != nil {
 			fmt.Println("Failed to accept connection:", err)
 			continue
 		}
-		fmt.Println("connect to", listenAddr)
-
-		clients := make([]client, MAXCLIENTS)
 
 		i := findFreeClient(clients)
 		if i < 0 {
