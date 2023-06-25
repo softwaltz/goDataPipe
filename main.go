@@ -33,11 +33,9 @@ func main() {
 		}
 		tmp := strings.Split(arg, ":")
 		if len(tmp) == 4 {
-			handleConn(tmp[0]+":"+tmp[1], tmp[2]+":"+tmp[3])
+			go handleConn(tmp[0]+":"+tmp[1], tmp[2]+":"+tmp[3])
 		}
 	}
-
-	go handleConn("0.0.0.0:8080", "192.168.70.133:80")
 }
 
 func handleConn(listenAddr, remoteAddr string) {
