@@ -37,9 +37,7 @@ func main() {
 		}
 	}
 
-	handleConn("0.0.0.0:8080", "192.168.70.133:80")
-	// listenAddr := os.Args[1] + ":" + os.Args[2]
-	// remoteAddr := os.Args[3] + ":" + os.Args[4]
+	go handleConn("0.0.0.0:8080", "192.168.70.133:80")
 }
 
 func handleConn(listenAddr, remoteAddr string) {
