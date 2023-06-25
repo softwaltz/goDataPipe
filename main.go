@@ -14,13 +14,12 @@ import (
 const (
 	MAXCLIENTS  = 300
 	IDLETIMEOUT = 300
-	BUFFER_SIZE = 4096
 )
 
 type client struct {
 	inuse    bool
-	csock    net.Conn
-	osock    net.Conn
+	inSock   net.Conn
+	outSock  net.Conn
 	activity time.Time
 }
 
@@ -60,57 +59,10 @@ func pipeLine2(listenAddr, remoteAddr string) {
 	}
 	defer lsock.Close()
 
-	for {
-		conn, err := lsock.Accept()
-		if err != nil {
-			fmt.Println("Failed to accept connection:", err)
-			continue
-		}
-
-		proxy, err := net.Dial("tcp", remoteAddr)
-		if err != nil {
-			fmt.Println("Failed to connect to remote host:", err)
-			conn.Close()
-			continue
-		}
-
-		copyIO := func(src, dest net.Conn) {
-			defer src.Close()
-			defer dest.Close()
-			io.Copy(src, dest)
-		}
-
-		go copyIO(conn, proxy)
-		go copyIO(proxy, conn)
-	}
-}
-
-func pipeLine(listenAddr, remoteAddr string) {
-	fmt.Println(listenAddr, "<->", remoteAddr)
-
-	laddr, err := net.ResolveTCPAddr("tcp", listenAddr)
-	if err != nil {
-		fmt.Println("Failed to resolve listen address:", err)
-		os.Exit(1)
-	}
-
-	raddr, err := net.ResolveTCPAddr("tcp", remoteAddr)
-	if err != nil {
-		fmt.Println("Failed to resolve remote address:", err)
-		os.Exit(1)
-	}
-
-	lsock, err := net.ListenTCP("tcp", laddr)
-	if err != nil {
-		fmt.Println("Failed to listen:", err)
-		os.Exit(1)
-	}
-	defer lsock.Close()
-
 	clients := make([]client, MAXCLIENTS)
 
 	for {
-		conn, err := lsock.Accept()
+		inSock, err := lsock.Accept()
 		if err != nil {
 			fmt.Println("Failed to accept connection:", err)
 			continue
@@ -119,55 +71,40 @@ func pipeLine(listenAddr, remoteAddr string) {
 		i := findFreeClient(clients)
 		if i < 0 {
 			fmt.Println("Too many clients")
-			conn.Close()
+			inSock.Close()
 			continue
 		}
 
-		osock, err := net.DialTCP("tcp", nil, raddr)
+		outSock, err := net.Dial("tcp", remoteAddr)
 		if err != nil {
 			fmt.Println("Failed to connect to remote host:", err)
-			conn.Close()
+			inSock.Close()
 			continue
 		}
 
 		clients[i] = client{
 			inuse:    true,
-			csock:    conn,
-			osock:    osock,
+			inSock:   inSock,
+			outSock:  outSock,
 			activity: time.Now(),
 		}
 
-		go handleClient(&clients[i])
+		handleClient(&clients[i])
 	}
 }
 
 func handleClient(cli *client) {
-	buf := make([]byte, BUFFER_SIZE)
-
-	for {
-		// Set read and write deadlines to detect idle clients
-		cli.csock.SetReadDeadline(time.Now().Add(IDLETIMEOUT * time.Second))
-		cli.osock.SetWriteDeadline(time.Now().Add(IDLETIMEOUT * time.Second))
-
-		n, err := cli.csock.Read(buf)
-		if err != nil {
-			cli.csock.Close()
-			cli.osock.Close()
-			cli.inuse = false
-			return
-		}
-
-		_, err = cli.osock.Write(buf[:n])
-		if err != nil {
-			cli.csock.Close()
-			cli.osock.Close()
-			cli.inuse = false
-			return
-		}
-		fmt.Println("sending", n, "byes.")
-
-		cli.activity = time.Now()
+	copyIO := func(src, dst net.Conn) {
+		src.SetReadDeadline(time.Now().Add(IDLETIMEOUT * time.Second))
+		dst.SetWriteDeadline(time.Now().Add(IDLETIMEOUT * time.Second))
+		defer src.Close()
+		defer dst.Close()
+		io.Copy(src, dst)
 	}
+
+	cli.activity = time.Now()
+	go copyIO(cli.inSock, cli.outSock)
+	go copyIO(cli.outSock, cli.inSock)
 }
 
 func findFreeClient(clients []client) int {
