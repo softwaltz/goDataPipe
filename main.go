@@ -48,7 +48,8 @@ func pipeLine(listenAddr, remoteAddr string) {
 	copyIO := func(src, dest net.Conn) {
 		defer src.Close()
 		defer dest.Close()
-		io.Copy(src, dest)
+		n, err := io.Copy(src, dest)
+		fmt.Println("Writing", n, "bytes from", src.RemoteAddr(), "to", dest.RemoteAddr(), ". err:", err.Error())
 	}
 
 	for {
