@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 	"time"
 )
 
 const (
-	MAXCLIENTS  = 20
+	MAXCLIENTS  = 300
 	IDLETIMEOUT = 300
 	BUFFER_SIZE = 4096
 )
@@ -21,13 +22,28 @@ type client struct {
 }
 
 func main() {
-	if len(os.Args) != 5 {
-		fmt.Printf("Usage: %s localhost localport remotehost remoteport\n", os.Args[0])
+	if len(os.Args) == 1 {
+		fmt.Printf("Usage: %s lhost:lport:rhost:rport lhost:lport:rhost:rport ...\n", os.Args[0])
 		os.Exit(1)
 	}
 
-	listenAddr := os.Args[1] + ":" + os.Args[2]
-	remoteAddr := os.Args[3] + ":" + os.Args[4]
+	for i, arg := range os.Args {
+		if i == 0 {
+			continue
+		}
+		tmp := strings.Split(arg, ":")
+		if len(tmp) == 4 {
+			handleConn(tmp[0]+":"+tmp[1], tmp[2]+":"+tmp[3])
+		}
+	}
+
+	handleConn("0.0.0.0:8080", "192.168.70.133:80")
+	// listenAddr := os.Args[1] + ":" + os.Args[2]
+	// remoteAddr := os.Args[3] + ":" + os.Args[4]
+}
+
+func handleConn(listenAddr, remoteAddr string) {
+	fmt.Println(listenAddr, "<->", remoteAddr)
 
 	laddr, err := net.ResolveTCPAddr("tcp", listenAddr)
 	if err != nil {
@@ -48,14 +64,15 @@ func main() {
 	}
 	defer lsock.Close()
 
-	clients := make([]client, MAXCLIENTS)
-
 	for {
 		conn, err := lsock.Accept()
 		if err != nil {
 			fmt.Println("Failed to accept connection:", err)
 			continue
 		}
+		fmt.Println("connect to", listenAddr)
+
+		clients := make([]client, MAXCLIENTS)
 
 		i := findFreeClient(clients)
 		if i < 0 {
@@ -63,6 +80,7 @@ func main() {
 			conn.Close()
 			continue
 		}
+		fmt.Println("using client", i)
 
 		osock, err := net.DialTCP("tcp", nil, raddr)
 		if err != nil {
