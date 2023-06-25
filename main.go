@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -33,12 +35,21 @@ func main() {
 		}
 		tmp := strings.Split(arg, ":")
 		if len(tmp) == 4 {
-			go handleConn(tmp[0]+":"+tmp[1], tmp[2]+":"+tmp[3])
+			laddr := tmp[0] + ":" + tmp[1]
+			raddr := tmp[2] + ":" + tmp[3]
+			fmt.Println(i, ":", laddr, raddr)
+			go pipeLine(laddr, raddr)
 		}
 	}
+
+	s := make(chan os.Signal, 1)
+	signal.Notify(s, os.Interrupt)
+	signal.Notify(s, syscall.SIGTERM)
+	<-s
+	fmt.Println("Stop Piping!!!")
 }
 
-func handleConn(listenAddr, remoteAddr string) {
+func pipeLine(listenAddr, remoteAddr string) {
 	fmt.Println(listenAddr, "<->", remoteAddr)
 
 	laddr, err := net.ResolveTCPAddr("tcp", listenAddr)
