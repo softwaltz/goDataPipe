@@ -39,7 +39,7 @@ func main() {
 			laddr := tmp[0] + ":" + tmp[1]
 			raddr := tmp[2] + ":" + tmp[3]
 			fmt.Println(i, ":", laddr, raddr)
-			go pipeLine(laddr, raddr)
+			go pipeLine2(laddr, raddr)
 		}
 	}
 
