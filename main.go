@@ -10,6 +10,8 @@ import (
 	"syscall"
 )
 
+const BUFFER_SIZE = 4096
+
 func main() {
 	if len(os.Args) == 1 {
 		fmt.Printf("Usage: %s lhost:lport:rhost:rport lhost:lport:rhost:rport ...\n", os.Args[0])
@@ -45,13 +47,6 @@ func pipeLine(listenAddr, remoteAddr string) {
 	}
 	defer lsock.Close()
 
-	copyIO := func(src, dest net.Conn) {
-		defer src.Close()
-		defer dest.Close()
-		n, _ := io.Copy(src, dest)
-		fmt.Println("Writing", n, "bytes from", src.RemoteAddr(), "to", dest.RemoteAddr())
-	}
-
 	for {
 		conn, err := lsock.Accept()
 		if err != nil {
@@ -66,7 +61,32 @@ func pipeLine(listenAddr, remoteAddr string) {
 			continue
 		}
 
-		go copyIO(conn, proxy)
-		go copyIO(proxy, conn)
+		go redirectIO(conn, proxy)
+		go redirectIO(proxy, conn)
 	}
+}
+
+func redirectIO(src, dst net.Conn) {
+	defer src.Close()
+	defer dst.Close()
+
+	buf := make([]byte, BUFFER_SIZE)
+	for {
+		// Set read and write deadlines to detect idle clients
+		n, err := src.Read(buf)
+		if err != nil {
+			return
+		}
+		_, err = dst.Write(buf[:n])
+		if err != nil {
+			return
+		}
+	}
+}
+
+func copyIO(src, dest net.Conn) {
+	defer src.Close()
+	defer dest.Close()
+	n, _ := io.Copy(src, dest)
+	fmt.Println("Writing", n, "bytes from", src.RemoteAddr(), "to", dest.RemoteAddr())
 }
