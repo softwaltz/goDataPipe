@@ -74,7 +74,9 @@ func redirectIO(src, dst net.Conn) {
 
 	total := 0
 	defer func() {
-		fmt.Println(src.RemoteAddr(), "--[", total, "byets]-->", dst.RemoteAddr())
+		if total > 0 {
+			fmt.Println(src.RemoteAddr(), "--[", total, "byets]-->", dst.RemoteAddr())
+		}
 	}()
 
 	buf := make([]byte, BUFFER_SIZE)
